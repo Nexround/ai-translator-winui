@@ -63,11 +63,11 @@
                 x:Name="WorkspaceGrid"
                 Grid.Row="1"
                 Padding="20,16"
-                ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+                RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="2*" />
+                    <RowDefinition Height="3*" />
+                </Grid.RowDefinitions>
 
                 <Border
                     Padding="16"
@@ -112,7 +112,7 @@
                 </Border>
 
                 <Border
-                    Grid.Column="1"
+                    Grid.Row="1"
                     Padding="16"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
