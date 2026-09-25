@@ -3,11 +3,14 @@ using System.Text;
 using AiTranslator.WinUI.Models;
 using AiTranslator.WinUI.Services;
 using Microsoft.UI;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.System;
+using Windows.UI.Core;
 
 namespace AiTranslator.WinUI;
 
@@ -28,21 +31,29 @@ public sealed partial class MainPage : Page
         _settings = _settingsStore.Load();
         TargetLanguageComboBox.ItemsSource = AppSettings.TargetLanguages;
         SelectTargetLanguage(_settings.TargetLanguage);
+
+        AddHandler(KeyDownEvent, new KeyEventHandler(Page_KeyDown), true);
     }
 
     private async void TranslateButton_Click(object sender, RoutedEventArgs e) =>
         await StartTranslationAsync();
 
-    private async void TranslateKeyboardAccelerator_Invoked(
-        KeyboardAccelerator sender,
-        KeyboardAcceleratorInvokedEventArgs args)
+    private async void Page_KeyDown(object sender, KeyRoutedEventArgs args)
     {
+        if (args.Key != VirtualKey.Enter || !IsControlKeyDown())
+        {
+            return;
+        }
+
         args.Handled = true;
         if (!_isTranslating && MainView.Visibility == Visibility.Visible)
         {
             await StartTranslationAsync();
         }
     }
+
+    private static bool IsControlKeyDown() =>
+        (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) & CoreVirtualKeyStates.Down) != 0;
 
     private async Task StartTranslationAsync()
     {
