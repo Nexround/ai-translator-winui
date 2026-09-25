@@ -319,6 +319,8 @@ public sealed partial class MainPage : Page
         DictionaryEnglishSection.Visibility = englishDefinitions.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         DictionaryEnglishSection.IsExpanded = false;
 
+        UpdateDictionaryLayout();
+
         _dictionaryCopyText = string.Join(Environment.NewLine, new[] { DictionaryWordTextBlock.Text }
             .Concat(definitions.Select(item => item.DisplayText)));
         DictionaryLoadingView.Visibility = Visibility.Collapsed;
@@ -326,6 +328,26 @@ public sealed partial class MainPage : Page
         DictionaryContentView.Visibility = Visibility.Visible;
         CopyButton.IsEnabled = _dictionaryCopyText.Length > 0;
         DictionaryContentView.ChangeView(null, 0, null);
+    }
+
+    private void DictionaryContentView_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        UpdateDictionaryLayout();
+
+    private void UpdateDictionaryLayout()
+    {
+        bool hasSecondaryContent = DictionaryExamplesSection.Visibility == Visibility.Visible
+            || DictionaryPhrasesSection.Visibility == Visibility.Visible
+            || DictionaryFormsSection.Visibility == Visibility.Visible
+            || DictionaryEnglishSection.Visibility == Visibility.Visible;
+        bool useTwoColumns = hasSecondaryContent && DictionaryContentView.ActualWidth >= 720;
+
+        DictionarySecondaryColumn.Visibility = hasSecondaryContent ? Visibility.Visible : Visibility.Collapsed;
+        DictionarySecondaryGridColumn.Width = useTwoColumns
+            ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        DictionaryColumnsGrid.ColumnSpacing = useTwoColumns ? 20 : 0;
+        DictionaryColumnsGrid.RowSpacing = hasSecondaryContent && !useTwoColumns ? 16 : 0;
+        Grid.SetColumn(DictionarySecondaryColumn, useTwoColumns ? 1 : 0);
+        Grid.SetRow(DictionarySecondaryColumn, useTwoColumns ? 0 : 1);
     }
 
     private static string FormatPhonetic(string? text) =>
