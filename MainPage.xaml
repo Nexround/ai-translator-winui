@@ -366,18 +366,24 @@
                                                     TextWrapping="Wrap" />
                                             </StackPanel>
 
-                                            <Expander x:Name="DictionaryEnglishSection" Header="英英释义" IsExpanded="False">
+                                            <StackPanel x:Name="DictionaryEnglishSection" Spacing="10">
+                                                <TextBlock FontWeight="SemiBold" Text="英英释义" />
                                                 <ItemsControl x:Name="DictionaryEnglishItemsControl">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <TextBlock
+                                                            <Border
                                                                 Margin="0,0,0,8"
-                                                                Text="{Binding DisplayText}"
-                                                                TextWrapping="Wrap" />
+                                                                Padding="12,10"
+                                                                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                                CornerRadius="8">
+                                                                <TextBlock
+                                                                    Text="{Binding DisplayText}"
+                                                                    TextWrapping="Wrap" />
+                                                            </Border>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
-                                            </Expander>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Grid>
 

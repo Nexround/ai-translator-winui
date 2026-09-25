@@ -317,7 +317,6 @@ public sealed partial class MainPage : Page
             .ToList();
         DictionaryEnglishItemsControl.ItemsSource = englishDefinitions;
         DictionaryEnglishSection.Visibility = englishDefinitions.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        DictionaryEnglishSection.IsExpanded = false;
 
         UpdateDictionaryLayout();
 
