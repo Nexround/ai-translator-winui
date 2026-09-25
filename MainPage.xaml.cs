@@ -334,11 +334,22 @@ public sealed partial class MainPage : Page
 
     private void UpdateDictionaryLayout()
     {
+        double availableWidth = DictionaryContentView.ActualWidth;
+        bool keepPronunciationInline = availableWidth >= 760;
+        Grid.SetColumn(DictionaryPronunciationPanel, keepPronunciationInline ? 1 : 0);
+        Grid.SetRow(DictionaryPronunciationPanel, keepPronunciationInline ? 0 : 1);
+        DictionaryPronunciationPanel.HorizontalAlignment = keepPronunciationInline
+            ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+        DictionaryPronunciationPanel.Orientation = availableWidth >= 500
+            ? Orientation.Horizontal : Orientation.Vertical;
+        DictionaryHeaderGrid.ColumnSpacing = keepPronunciationInline ? 16 : 0;
+        DictionaryHeaderGrid.RowSpacing = keepPronunciationInline ? 0 : 10;
+
         bool hasSecondaryContent = DictionaryExamplesSection.Visibility == Visibility.Visible
             || DictionaryPhrasesSection.Visibility == Visibility.Visible
             || DictionaryFormsSection.Visibility == Visibility.Visible
             || DictionaryEnglishSection.Visibility == Visibility.Visible;
-        bool useTwoColumns = hasSecondaryContent && DictionaryContentView.ActualWidth >= 720;
+        bool useTwoColumns = hasSecondaryContent && availableWidth >= 720;
 
         DictionarySecondaryColumn.Visibility = hasSecondaryContent ? Visibility.Visible : Visibility.Collapsed;
         DictionarySecondaryGridColumn.Width = useTwoColumns

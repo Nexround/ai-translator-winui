@@ -215,18 +215,84 @@
                                 Visibility="Collapsed"
                                 VerticalScrollBarVisibility="Auto">
                                 <StackPanel Padding="4,2,8,12" Spacing="16">
-                                    <StackPanel Spacing="5">
-                                        <TextBlock
-                                            x:Name="DictionaryWordTextBlock"
-                                            FontSize="28"
-                                            FontWeight="SemiBold"
-                                            TextWrapping="Wrap" />
-                                        <TextBlock
-                                            x:Name="DictionaryTagsTextBlock"
-                                            FontSize="12"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            TextWrapping="Wrap" />
-                                    </StackPanel>
+                                    <Grid x:Name="DictionaryHeaderGrid" ColumnSpacing="16" RowSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel VerticalAlignment="Center" Spacing="3">
+                                            <TextBlock
+                                                x:Name="DictionaryWordTextBlock"
+                                                FontSize="28"
+                                                FontWeight="SemiBold"
+                                                TextWrapping="Wrap" />
+                                            <TextBlock
+                                                x:Name="DictionaryTagsTextBlock"
+                                                FontSize="12"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+
+                                        <StackPanel
+                                            x:Name="DictionaryPronunciationPanel"
+                                            Grid.Column="1"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            Orientation="Horizontal"
+                                            Spacing="8">
+                                            <Border
+                                                Padding="8,4"
+                                                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                CornerRadius="8">
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <TextBlock VerticalAlignment="Center" Text="英式" />
+                                                    <TextBlock
+                                                        x:Name="DictionaryUkPhoneticTextBlock"
+                                                        MaxWidth="140"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                        TextWrapping="Wrap" />
+                                                    <Button
+                                                        x:Name="DictionaryUkAudioButton"
+                                                        Width="30"
+                                                        Height="30"
+                                                        AutomationProperties.Name="播放英式发音"
+                                                        Click="DictionaryUkAudioButton_Click"
+                                                        Content="▶"
+                                                        Padding="0"
+                                                        ToolTipService.ToolTip="播放英式发音" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border
+                                                Padding="8,4"
+                                                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                CornerRadius="8">
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <TextBlock VerticalAlignment="Center" Text="美式" />
+                                                    <TextBlock
+                                                        x:Name="DictionaryUsPhoneticTextBlock"
+                                                        MaxWidth="140"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                        TextWrapping="Wrap" />
+                                                    <Button
+                                                        x:Name="DictionaryUsAudioButton"
+                                                        Width="30"
+                                                        Height="30"
+                                                        AutomationProperties.Name="播放美式发音"
+                                                        Click="DictionaryUsAudioButton_Click"
+                                                        Content="▶"
+                                                        Padding="0"
+                                                        ToolTipService.ToolTip="播放美式发音" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
 
                                     <Grid x:Name="DictionaryColumnsGrid" ColumnSpacing="20">
                                         <Grid.ColumnDefinitions>
@@ -237,80 +303,23 @@
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
-                                        <StackPanel Spacing="16">
-                                            <StackPanel Spacing="8">
-                                                <Border
-                                                    Padding="12,8"
-                                                    Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                                    CornerRadius="8">
-                                                    <Grid ColumnSpacing="8">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock VerticalAlignment="Center" Text="英式" />
-                                                        <TextBlock
-                                                            x:Name="DictionaryUkPhoneticTextBlock"
-                                                            Grid.Column="1"
-                                                            VerticalAlignment="Center"
-                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                            TextWrapping="Wrap" />
-                                                        <Button
-                                                            x:Name="DictionaryUkAudioButton"
-                                                            Grid.Column="2"
-                                                            AutomationProperties.Name="播放英式发音"
-                                                            Click="DictionaryUkAudioButton_Click"
-                                                            Content="▶ 发音"
-                                                            ToolTipService.ToolTip="播放英式发音" />
-                                                    </Grid>
-                                                </Border>
-                                                <Border
-                                                    Padding="12,8"
-                                                    Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                                    CornerRadius="8">
-                                                    <Grid ColumnSpacing="8">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock VerticalAlignment="Center" Text="美式" />
-                                                        <TextBlock
-                                                            x:Name="DictionaryUsPhoneticTextBlock"
-                                                            Grid.Column="1"
-                                                            VerticalAlignment="Center"
-                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                            TextWrapping="Wrap" />
-                                                        <Button
-                                                            x:Name="DictionaryUsAudioButton"
-                                                            Grid.Column="2"
-                                                            AutomationProperties.Name="播放美式发音"
-                                                            Click="DictionaryUsAudioButton_Click"
-                                                            Content="▶ 发音"
-                                                            ToolTipService.ToolTip="播放美式发音" />
-                                                    </Grid>
-                                                </Border>
-                                            </StackPanel>
-
-                                            <StackPanel x:Name="DictionaryDefinitionsSection" Spacing="10">
-                                                <TextBlock FontWeight="SemiBold" Text="中文释义" />
-                                                <ItemsControl x:Name="DictionaryDefinitionsItemsControl">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Border
-                                                                Margin="0,0,0,7"
-                                                                Padding="12,10"
-                                                                Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                                                CornerRadius="8">
-                                                                <TextBlock
-                                                                    Text="{Binding DisplayText}"
-                                                                    TextWrapping="Wrap" />
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
+                                        <StackPanel x:Name="DictionaryDefinitionsSection" Spacing="10">
+                                            <TextBlock FontWeight="SemiBold" Text="中文释义" />
+                                            <ItemsControl x:Name="DictionaryDefinitionsItemsControl">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border
+                                                            Margin="0,0,0,7"
+                                                            Padding="12,10"
+                                                            Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                            CornerRadius="8">
+                                                            <TextBlock
+                                                                Text="{Binding DisplayText}"
+                                                                TextWrapping="Wrap" />
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                         </StackPanel>
 
                                         <StackPanel x:Name="DictionarySecondaryColumn" Grid.Column="1" Spacing="16">
