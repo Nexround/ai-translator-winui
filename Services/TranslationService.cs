@@ -67,14 +67,14 @@ public sealed class TranslationService : IDisposable
 
             foreach (ChatChoice choice in chunk?.Choices ?? [])
             {
-                if (!string.IsNullOrEmpty(choice.Delta?.Content))
-                {
-                    chunks.Report(choice.Delta.Content);
-                }
-
                 if (choice.FinishReason is not null)
                 {
                     return;
+                }
+
+                if (!string.IsNullOrEmpty(choice.Delta?.Content))
+                {
+                    chunks.Report(choice.Delta.Content);
                 }
             }
         }
