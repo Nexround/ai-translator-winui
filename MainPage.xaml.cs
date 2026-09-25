@@ -9,6 +9,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Media.Core;
+using Windows.Media.Playback;
 using Windows.System;
 using Windows.UI.Core;
 
@@ -18,8 +20,14 @@ public sealed partial class MainPage : Page
 {
     private readonly SettingsStore _settingsStore = new();
     private readonly TranslationService _translationService = new();
+    private readonly DictionaryService _dictionaryService = new();
+    private readonly MediaPlayer _audioPlayer = new();
     private AppSettings _settings;
     private CancellationTokenSource? _translationCancellation;
+    private DictionaryEntry? _dictionaryEntry;
+    private string? _dictionaryWord;
+    private string? _dictionaryCopyText;
+    private int _operationVersion;
     private bool _targetLanguageManuallySet;
     private bool _suppressLanguageSelection;
     private bool _isTranslating;
@@ -33,10 +41,13 @@ public sealed partial class MainPage : Page
         SelectTargetLanguage(_settings.TargetLanguage);
 
         AddHandler(KeyDownEvent, new KeyEventHandler(Page_KeyDown), true);
+        _audioPlayer.MediaFailed += (_, _) => DispatcherQueue.TryEnqueue(() =>
+            SetStatus("发音播放失败，请检查网络后重试。", StatusKind.Error));
+        UpdateActionLabel();
     }
 
     private async void TranslateButton_Click(object sender, RoutedEventArgs e) =>
-        await StartTranslationAsync();
+        await StartActionAsync();
 
     private async void Page_KeyDown(object sender, KeyRoutedEventArgs args)
     {
@@ -48,7 +59,7 @@ public sealed partial class MainPage : Page
         args.Handled = true;
         if (!_isTranslating && MainView.Visibility == Visibility.Visible)
         {
-            await StartTranslationAsync();
+            await StartActionAsync();
         }
     }
 
@@ -68,13 +79,24 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private async Task StartTranslationAsync()
+    private async Task StartActionAsync(bool forceAi = false)
     {
+        if (_isTranslating)
+        {
+            return;
+        }
+
         string source = SourceTextBox.Text.Trim();
         if (source.Length == 0)
         {
             SetStatus("请输入要翻译的文本", StatusKind.Warning);
             SourceTextBox.Focus(FocusState.Programmatic);
+            return;
+        }
+
+        if (!forceAi && ShouldUseDictionary(source))
+        {
+            await LookupWordAsync(source);
             return;
         }
 
@@ -103,14 +125,21 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        ShowTranslationView();
         TargetTextBox.Text = string.Empty;
+        int operationVersion = ++_operationVersion;
         _translationCancellation?.Dispose();
         _translationCancellation = new CancellationTokenSource();
-        SetTranslationState(true);
+        SetTranslationState(true, false);
         SetStatus("正在翻译…", StatusKind.Normal);
 
         Progress<string> progress = new(chunk =>
         {
+            if (operationVersion != _operationVersion)
+            {
+                return;
+            }
+
             TargetTextBox.Text += chunk;
             TargetTextBox.SelectionStart = TargetTextBox.Text.Length;
         });
@@ -122,48 +151,270 @@ public sealed partial class MainPage : Page
                 source,
                 progress,
                 _translationCancellation.Token);
-            SetStatus("翻译完成", StatusKind.Success);
+            if (operationVersion == _operationVersion)
+            {
+                SetStatus("翻译完成", StatusKind.Success);
+            }
         }
         catch (OperationCanceledException)
         {
-            SetStatus("已取消", StatusKind.Normal);
+            if (operationVersion == _operationVersion)
+            {
+                SetStatus("已取消", StatusKind.Normal);
+            }
         }
         catch (TranslationException exception)
         {
-            SetStatus($"错误：{exception.Message}", StatusKind.Error);
+            if (operationVersion == _operationVersion)
+            {
+                SetStatus($"错误：{exception.Message}", StatusKind.Error);
+            }
         }
         catch (Exception exception)
         {
-            SetStatus($"错误：{exception.Message}", StatusKind.Error);
+            if (operationVersion == _operationVersion)
+            {
+                SetStatus($"错误：{exception.Message}", StatusKind.Error);
+            }
         }
         finally
         {
-            SetTranslationState(false);
+            if (operationVersion == _operationVersion)
+            {
+                SetTranslationState(false, false);
+            }
         }
     }
 
-    private void CancelTranslationButton_Click(object sender, RoutedEventArgs e) =>
+    private bool ShouldUseDictionary(string source) =>
+        DictionaryService.IsEnglishWord(source)
+        && (!_targetLanguageManuallySet || TargetLanguageComboBox.SelectedItem is "中文");
+
+    private async Task LookupWordAsync(string word)
+    {
+        if (!_targetLanguageManuallySet)
+        {
+            SelectTargetLanguage("中文");
+        }
+
+        _targetLanguageManuallySet = false;
+        _dictionaryWord = word;
+        _dictionaryEntry = null;
+        _dictionaryCopyText = null;
+        TargetTextBox.Text = string.Empty;
+        TargetTextBox.Visibility = Visibility.Collapsed;
+        DictionaryView.Visibility = Visibility.Visible;
+        DictionaryLoadingView.Visibility = Visibility.Visible;
+        DictionaryMessageView.Visibility = Visibility.Collapsed;
+        DictionaryContentView.Visibility = Visibility.Collapsed;
+        ResultTitleTextBlock.Text = "英汉词典";
+        ResultSourceTextBlock.Text = "UAPI";
+        CopyButton.Content = "复制释义";
+        CopyButton.IsEnabled = false;
+
+        int operationVersion = ++_operationVersion;
+        _translationCancellation?.Dispose();
+        _translationCancellation = new CancellationTokenSource();
+        SetTranslationState(true, true);
+        SetStatus($"正在查询 {word}…", StatusKind.Normal);
+
+        try
+        {
+            DictionaryEntry? entry = await _dictionaryService.LookupAsync(word, _translationCancellation.Token);
+            if (operationVersion != _operationVersion || SourceTextBox.Text.Trim() != word)
+            {
+                return;
+            }
+
+            if (entry is null)
+            {
+                ShowDictionaryMessage("词典暂未收录这个词。可以检查拼写，或使用 AI 翻译。");
+                SetStatus("词典未收录", StatusKind.Warning);
+            }
+            else
+            {
+                ShowDictionaryEntry(entry);
+                SetStatus("查词完成", StatusKind.Success);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            if (operationVersion == _operationVersion && SourceTextBox.Text.Trim() == word)
+            {
+                ShowDictionaryMessage("查词已取消，可以重试。");
+                SetStatus("已取消", StatusKind.Normal);
+            }
+        }
+        catch (DictionaryLookupException exception)
+        {
+            if (operationVersion == _operationVersion)
+            {
+                ShowDictionaryMessage(exception.Message);
+                SetStatus("词典查询失败", StatusKind.Error);
+            }
+        }
+        finally
+        {
+            if (operationVersion == _operationVersion)
+            {
+                SetTranslationState(false, true);
+            }
+        }
+    }
+
+    private void ShowDictionaryMessage(string message)
+    {
+        DictionaryLoadingView.Visibility = Visibility.Collapsed;
+        DictionaryContentView.Visibility = Visibility.Collapsed;
+        DictionaryMessageTextBlock.Text = message;
+        DictionaryMessageView.Visibility = Visibility.Visible;
+    }
+
+    private void ShowDictionaryEntry(DictionaryEntry entry)
+    {
+        _dictionaryEntry = entry;
+        DictionaryWordTextBlock.Text = string.IsNullOrWhiteSpace(entry.Word) ? _dictionaryWord : entry.Word;
+        DictionaryTagsTextBlock.Text = string.Join("  ·  ", entry.ExamTags ?? []);
+        DictionaryTagsTextBlock.Visibility = string.IsNullOrEmpty(DictionaryTagsTextBlock.Text)
+            ? Visibility.Collapsed : Visibility.Visible;
+
+        DictionaryUkPhoneticTextBlock.Text = FormatPhonetic(entry.Phonetics?.Uk?.Text);
+        DictionaryUsPhoneticTextBlock.Text = FormatPhonetic(entry.Phonetics?.Us?.Text);
+        DictionaryUkAudioButton.IsEnabled = DictionaryService.GetAudioUri(_dictionaryWord!, "uk", entry.Phonetics?.Uk) is not null;
+        DictionaryUsAudioButton.IsEnabled = DictionaryService.GetAudioUri(_dictionaryWord!, "us", entry.Phonetics?.Us) is not null;
+
+        List<DictionaryDefinition> definitions = (entry.Definitions ?? [])
+            .Where(item => !string.IsNullOrWhiteSpace(item.Meaning))
+            .Take(8)
+            .ToList();
+        DictionaryDefinitionsItemsControl.ItemsSource = definitions;
+        DictionaryDefinitionsSection.Visibility = definitions.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        List<DictionaryExample> examples = (entry.Examples ?? [])
+            .Where(item => !string.IsNullOrWhiteSpace(item.Source))
+            .Take(3)
+            .ToList();
+        DictionaryExamplesItemsControl.ItemsSource = examples;
+        DictionaryExamplesSection.Visibility = examples.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        List<DictionaryPhrase> phrases = (entry.Phrases ?? [])
+            .Where(item => !string.IsNullOrWhiteSpace(item.Phrase))
+            .Take(6)
+            .ToList();
+        DictionaryPhrasesItemsControl.ItemsSource = phrases;
+        DictionaryPhrasesSection.Visibility = phrases.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        DictionaryFormsTextBlock.Text = string.Join("  ·  ", (entry.WordForms ?? [])
+            .Where(item => !string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(item.Value))
+            .Take(8)
+            .Select(item => $"{item.Name} {item.Value}"));
+        DictionaryFormsSection.Visibility = DictionaryFormsTextBlock.Text.Length > 0
+            ? Visibility.Visible : Visibility.Collapsed;
+
+        List<DictionaryEnglishDefinition> englishDefinitions = (entry.EnglishDefinitions ?? [])
+            .Where(item => !string.IsNullOrWhiteSpace(item.Definition))
+            .Take(6)
+            .ToList();
+        DictionaryEnglishItemsControl.ItemsSource = englishDefinitions;
+        DictionaryEnglishSection.Visibility = englishDefinitions.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        DictionaryEnglishSection.IsExpanded = false;
+
+        _dictionaryCopyText = string.Join(Environment.NewLine, new[] { DictionaryWordTextBlock.Text }
+            .Concat(definitions.Select(item => item.DisplayText)));
+        DictionaryLoadingView.Visibility = Visibility.Collapsed;
+        DictionaryMessageView.Visibility = Visibility.Collapsed;
+        DictionaryContentView.Visibility = Visibility.Visible;
+        CopyButton.IsEnabled = _dictionaryCopyText.Length > 0;
+        DictionaryContentView.ChangeView(null, 0, null);
+    }
+
+    private static string FormatPhonetic(string? text) =>
+        string.IsNullOrWhiteSpace(text) ? "暂无音标" : $"/{text.Trim().Trim('/')}/";
+
+    private void ShowTranslationView()
+    {
+        _audioPlayer.Pause();
+        _dictionaryWord = null;
+        _dictionaryEntry = null;
+        _dictionaryCopyText = null;
+        DictionaryView.Visibility = Visibility.Collapsed;
+        TargetTextBox.Visibility = Visibility.Visible;
+        ResultTitleTextBlock.Text = "译文";
+        ResultSourceTextBlock.Text = "AI 翻译";
+        CopyButton.Content = "复制";
+        CopyButton.IsEnabled = true;
+    }
+
+    private async void RetryDictionaryButton_Click(object sender, RoutedEventArgs e)
+    {
+        string word = SourceTextBox.Text.Trim();
+        if (!_isTranslating && DictionaryService.IsEnglishWord(word))
+        {
+            await LookupWordAsync(word);
+        }
+    }
+
+    private async void UseAiTranslationButton_Click(object sender, RoutedEventArgs e) =>
+        await StartActionAsync(forceAi: true);
+
+    private void DictionaryUkAudioButton_Click(object sender, RoutedEventArgs e) =>
+        PlayPronunciation("uk", "英式");
+
+    private void DictionaryUsAudioButton_Click(object sender, RoutedEventArgs e) =>
+        PlayPronunciation("us", "美式");
+
+    private void PlayPronunciation(string accent, string label)
+    {
+        if (_dictionaryEntry is null || _dictionaryWord is null)
+        {
+            return;
+        }
+
+        DictionaryPronunciation? pronunciation = accent == "uk"
+            ? _dictionaryEntry.Phonetics?.Uk : _dictionaryEntry.Phonetics?.Us;
+        Uri? audioUri = DictionaryService.GetAudioUri(_dictionaryWord, accent, pronunciation);
+        if (audioUri is null)
+        {
+            SetStatus("该词暂无发音", StatusKind.Warning);
+            return;
+        }
+
+        _audioPlayer.Source = MediaSource.CreateFromUri(audioUri);
+        _audioPlayer.Play();
+        SetStatus($"正在播放{label}发音", StatusKind.Normal);
+    }
+
+    private void CancelTranslationButton_Click(object sender, RoutedEventArgs e)
+    {
         _translationCancellation?.Cancel();
+        _audioPlayer.Pause();
+    }
 
     private void ClearButton_Click(object sender, RoutedEventArgs e)
     {
         _translationCancellation?.Cancel();
+        _operationVersion++;
+        SetTranslationState(false, false);
         SourceTextBox.Text = string.Empty;
         TargetTextBox.Text = string.Empty;
+        ShowTranslationView();
         SetStatus("已清空", StatusKind.Normal);
         SourceTextBox.Focus(FocusState.Programmatic);
     }
 
     private void CopyButton_Click(object sender, RoutedEventArgs e)
     {
-        if (TargetTextBox.Text.Length == 0)
+        string text = DictionaryView.Visibility == Visibility.Visible
+            ? _dictionaryCopyText ?? string.Empty
+            : TargetTextBox.Text;
+        if (text.Length == 0)
         {
-            SetStatus("暂无可复制的译文", StatusKind.Warning);
+            SetStatus("暂无可复制的内容", StatusKind.Warning);
             return;
         }
 
         DataPackage dataPackage = new();
-        dataPackage.SetText(TargetTextBox.Text);
+        dataPackage.SetText(text);
         Clipboard.SetContent(dataPackage);
         Clipboard.Flush();
         SetStatus("已复制到剪贴板", StatusKind.Success);
@@ -176,9 +427,27 @@ public sealed partial class MainPage : Page
             await Task.Yield();
             if (!_isTranslating && SourceTextBox.Text.Trim().Length > 0)
             {
-                await StartTranslationAsync();
+                await StartActionAsync();
             }
         });
+    }
+
+    private void SourceTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_dictionaryWord is not null
+            && !string.Equals(SourceTextBox.Text.Trim(), _dictionaryWord, StringComparison.Ordinal))
+        {
+            if (_isTranslating)
+            {
+                _translationCancellation?.Cancel();
+                _operationVersion++;
+                SetTranslationState(false, false);
+            }
+
+            ShowTranslationView();
+        }
+
+        UpdateActionLabel();
     }
 
     private void TargetLanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -187,6 +456,7 @@ public sealed partial class MainPage : Page
         {
             _settings.TargetLanguage = language;
             _targetLanguageManuallySet = true;
+            UpdateActionLabel();
         }
     }
 
@@ -217,6 +487,7 @@ public sealed partial class MainPage : Page
             _settingsStore.Save(_settings);
             SetStatus("设置已保存", StatusKind.Success);
             CloseSettings();
+            UpdateActionLabel();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -291,14 +562,25 @@ public sealed partial class MainPage : Page
         _suppressLanguageSelection = false;
     }
 
-    private void SetTranslationState(bool isTranslating)
+    private void SetTranslationState(bool isTranslating, bool isDictionary)
     {
         _isTranslating = isTranslating;
         TranslateButton.IsEnabled = !isTranslating;
-        TranslateButtonText.Text = isTranslating ? "翻译中…" : "翻译  Ctrl+Enter";
+        TranslateButtonText.Text = isTranslating
+            ? isDictionary ? "查词中…" : "翻译中…"
+            : ShouldUseDictionary(SourceTextBox.Text.Trim()) ? "查词  Ctrl+Enter" : "翻译  Ctrl+Enter";
         TranslateProgressRing.IsActive = isTranslating;
         TranslateProgressRing.Visibility = isTranslating ? Visibility.Visible : Visibility.Collapsed;
         CancelTranslationButton.Visibility = isTranslating ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void UpdateActionLabel()
+    {
+        if (!_isTranslating)
+        {
+            TranslateButtonText.Text = ShouldUseDictionary(SourceTextBox.Text.Trim())
+                ? "查词  Ctrl+Enter" : "翻译  Ctrl+Enter";
+        }
     }
 
     private void SetStatus(string message, StatusKind kind)
@@ -350,9 +632,12 @@ public sealed partial class MainPage : Page
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
+        _operationVersion++;
         _translationCancellation?.Cancel();
         _translationCancellation?.Dispose();
         _translationService.Dispose();
+        _dictionaryService.Dispose();
+        _audioPlayer.Dispose();
     }
 
     private enum StatusKind
