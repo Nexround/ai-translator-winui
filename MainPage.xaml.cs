@@ -53,7 +53,20 @@ public sealed partial class MainPage : Page
     }
 
     private static bool IsControlKeyDown() =>
-        (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) & CoreVirtualKeyStates.Down) != 0;
+        IsKeyDown(VirtualKey.Control);
+
+    private static bool IsKeyDown(VirtualKey key) =>
+        (InputKeyboardSource.GetKeyStateForCurrentThread(key) & CoreVirtualKeyStates.Down) != 0;
+
+    private void SourceTextBox_BeforeTextChanging(
+        TextBox sender,
+        TextBoxBeforeTextChangingEventArgs args)
+    {
+        if (IsControlKeyDown() && IsKeyDown(VirtualKey.Enter))
+        {
+            args.Cancel = true;
+        }
+    }
 
     private async Task StartTranslationAsync()
     {

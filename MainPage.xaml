@@ -97,6 +97,7 @@
                             Grid.Row="1"
                             AcceptsReturn="True"
                             AutomationProperties.Name="原文"
+                            BeforeTextChanging="SourceTextBox_BeforeTextChanging"
                             BorderThickness="0"
                             FontSize="16"
                             HorizontalAlignment="Stretch"
