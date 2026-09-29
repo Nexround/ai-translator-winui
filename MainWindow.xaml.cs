@@ -16,7 +16,7 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon("Assets/AppIcon.ico");
         AppWindow.Title = "翻译助手";
 
-        RootFrame.Navigate(typeof(MainPage));
+        RootFrame.Content = App.GetService<MainPage>();
         RootFrame.Loaded += RootFrame_Loaded;
     }
 

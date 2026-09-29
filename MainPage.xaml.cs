@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using AiTranslator.WinUI.Models;
 using AiTranslator.WinUI.Services;
+using AiTranslator.WinUI.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -18,9 +19,9 @@ namespace AiTranslator.WinUI;
 
 public sealed partial class MainPage : Page
 {
-    private readonly SettingsStore _settingsStore = new();
-    private readonly TranslationService _translationService = new();
-    private readonly DictionaryService _dictionaryService = new();
+    private readonly SettingsStore _settingsStore;
+    private readonly TranslationService _translationService;
+    private readonly DictionaryService _dictionaryService;
     private readonly MediaPlayer _audioPlayer = new();
     private AppSettings _settings;
     private CancellationTokenSource? _translationCancellation;
@@ -32,8 +33,18 @@ public sealed partial class MainPage : Page
     private bool _suppressLanguageSelection;
     private bool _isTranslating;
 
-    public MainPage()
+    public MainPageViewModel ViewModel { get; }
+
+    public MainPage(
+        SettingsStore settingsStore,
+        TranslationService translationService,
+        DictionaryService dictionaryService,
+        MainPageViewModel viewModel)
     {
+        _settingsStore = settingsStore;
+        _translationService = translationService;
+        _dictionaryService = dictionaryService;
+        ViewModel = viewModel;
         InitializeComponent();
 
         _settings = _settingsStore.Load();
@@ -486,6 +497,7 @@ public sealed partial class MainPage : Page
     {
         if (!_suppressLanguageSelection && TargetLanguageComboBox.SelectedItem is string language)
         {
+            ViewModel.TargetLanguage = language;
             _settings.TargetLanguage = language;
             _targetLanguageManuallySet = true;
             UpdateActionLabel();
@@ -590,6 +602,7 @@ public sealed partial class MainPage : Page
     {
         _suppressLanguageSelection = true;
         TargetLanguageComboBox.SelectedItem = language;
+        ViewModel.TargetLanguage = language;
         _settings.TargetLanguage = language;
         _suppressLanguageSelection = false;
     }
@@ -597,8 +610,9 @@ public sealed partial class MainPage : Page
     private void SetTranslationState(bool isTranslating, bool isDictionary)
     {
         _isTranslating = isTranslating;
+        ViewModel.IsBusy = isTranslating;
         TranslateButton.IsEnabled = !isTranslating;
-        TranslateButtonText.Text = isTranslating
+        ViewModel.ActionLabel = isTranslating
             ? isDictionary ? "查词中…" : "翻译中…"
             : ShouldUseDictionary(SourceTextBox.Text.Trim()) ? "查词  Ctrl+Enter" : "翻译  Ctrl+Enter";
         TranslateProgressRing.IsActive = isTranslating;
@@ -610,14 +624,14 @@ public sealed partial class MainPage : Page
     {
         if (!_isTranslating)
         {
-            TranslateButtonText.Text = ShouldUseDictionary(SourceTextBox.Text.Trim())
+            ViewModel.ActionLabel = ShouldUseDictionary(SourceTextBox.Text.Trim())
                 ? "查词  Ctrl+Enter" : "翻译  Ctrl+Enter";
         }
     }
 
     private void SetStatus(string message, StatusKind kind)
     {
-        StatusTextBlock.Text = message;
+        ViewModel.StatusText = message;
         StatusTextBlock.Foreground = new SolidColorBrush(kind switch
         {
             StatusKind.Success => Colors.ForestGreen,

@@ -67,14 +67,16 @@ public sealed class TranslationService : IDisposable
 
             foreach (ChatChoice choice in chunk?.Choices ?? [])
             {
-                if (choice.FinishReason is not null)
-                {
-                    return;
-                }
-
                 if (!string.IsNullOrEmpty(choice.Delta?.Content))
                 {
                     chunks.Report(choice.Delta.Content);
+                }
+
+                // Some compatible APIs put the final text and finish_reason in
+                // the same SSE packet. Consume content before ending the stream.
+                if (choice.FinishReason is not null)
+                {
+                    return;
                 }
             }
         }

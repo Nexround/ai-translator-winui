@@ -29,6 +29,13 @@ jobs:
           -p:Platform=x64
           -o artifacts/win-x64
 
+      - name: Build installer
+        shell: pwsh
+        run: >-
+          .\installer\build-installer.ps1
+          -PayloadDirectory "${{ github.workspace }}\artifacts\win-x64"
+          -OutputPath "${{ github.workspace }}\AiTranslator-Setup.exe"
+
       - name: Create archive
         shell: pwsh
         run: Compress-Archive -Path artifacts/win-x64/* -DestinationPath ai-translator-winui-x64.zip
@@ -36,5 +43,7 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: ai-translator-winui-x64.zip
+          files: |
+            ai-translator-winui-x64.zip
+            AiTranslator-Setup.exe
           generate_release_notes: true

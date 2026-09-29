@@ -49,13 +49,31 @@ dotnet run -c Debug -p:Platform=x64
 
 项目采用 unpackaged + Windows App SDK self-contained 配置，因此普通 `dotnet build` 不需要安装或签名 MSIX 包。
 
+## WinUI 3 架构
+
+- `App.xaml.cs` 使用 `Microsoft.Extensions.DependencyInjection` 注册页面、配置存储、翻译和词典模块。
+- `ViewModels/MainPageViewModel.cs` 使用 `CommunityToolkit.Mvvm` 提供可观察的页面状态；页面代码只保留窗口控件、焦点、剪贴板和媒体播放等 UI 专属工作。
+- XAML 使用 `x:Bind` 绑定输入、输出、状态和操作标签，避免手动同步这些基础状态。
+- `Services` 模块负责网络请求、配置持久化和 UAPI 缓存；流式响应会先消费同一数据包中的 `content`，再处理 `finish_reason`。
+
+默认构建仍保持 unpackaged，便于本地调试和自包含发布。项目同时保留 single-project MSIX 清单和 `win10-x64` 发布配置；在安装了 Visual Studio 的 Windows App SDK/MSIX 工具链的机器上，可显式启用 `EnableMsixTooling=true` 生成 MSIX。当前工作区的轻量 .NET SDK 环境没有完整的 x64 MSIX 原生工具，因此不会把 MSIX 构建误报为成功。
+
 ## 发布
 
 ```powershell
 dotnet publish -c Release -r win-x64 --self-contained true -p:Platform=x64 -o artifacts/win-x64
 ```
 
-发布目录必须整体分发，不能只复制 `AiTranslator.exe`。推送 `v*` 标签时，GitHub Actions 会自动生成 x64 ZIP 并附加到 Release。
+发布目录必须整体分发，不能只复制 `AiTranslator.exe`。推送 `v*` 标签时，GitHub Actions 会生成 x64 ZIP 和免管理员权限的 `AiTranslator-Setup.exe` 安装包并附加到 Release。安装器使用 Windows IExpress 生成，适合当前 unpackaged 自包含版本；正式面向商店或企业分发时应使用签名的 MSIX。
+
+本地生成安装包：
+
+```powershell
+dotnet publish -c Release -r win-x64 --self-contained true -p:Platform=x64 -o artifacts/installer-payload
+.\installer\build-installer.ps1 `
+  -PayloadDirectory (Resolve-Path artifacts/installer-payload) `
+  -OutputPath (Join-Path (Resolve-Path artifacts) 'AiTranslator-Setup.exe')
+```
 
 ## 项目结构
 

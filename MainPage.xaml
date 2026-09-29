@@ -103,6 +103,7 @@
                             HorizontalAlignment="Stretch"
                             Padding="4"
                             Paste="SourceTextBox_Paste"
+                            Text="{x:Bind ViewModel.SourceText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                             PlaceholderText="输入文字翻译，或输入英文单词查词…"
                             TextChanged="SourceTextBox_TextChanged"
                             TextWrapping="Wrap"
@@ -155,6 +156,7 @@
                             IsReadOnly="True"
                             Padding="4"
                             PlaceholderText="翻译结果将在这里流式显示"
+                            Text="{x:Bind ViewModel.TargetText, Mode=TwoWay}"
                             TextWrapping="Wrap"
                             VerticalAlignment="Stretch"
                             VerticalContentAlignment="Top" />
@@ -423,8 +425,8 @@
                     <TextBlock
                         x:Name="StatusTextBlock"
                         MaxWidth="320"
+                        Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
                         VerticalAlignment="Center"
-                        Text="就绪"
                         TextTrimming="CharacterEllipsis" />
 
                     <StackPanel
@@ -443,7 +445,9 @@
                                     Height="16"
                                     IsActive="False"
                                     Visibility="Collapsed" />
-                                <TextBlock x:Name="TranslateButtonText" Text="翻译  Ctrl+Enter" />
+                                <TextBlock
+                                    x:Name="TranslateButtonText"
+                                    Text="{x:Bind ViewModel.ActionLabel, Mode=OneWay}" />
                             </StackPanel>
                         </Button>
 
