@@ -9,11 +9,20 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.platform }} MSIX
-    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
-        platform: [x64, x86, ARM64]
+        include:
+          - platform: x64
+            runner: windows-latest
+          - platform: x86
+            runner: windows-latest
+          # ARM64 MSIX packaging invokes native SDK resource tools. Build it
+          # on an ARM64 runner so mt.exe and MrmSupport.dll match the host.
+          - platform: ARM64
+            runner: windows-11-arm
+
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - uses: actions/checkout@v4

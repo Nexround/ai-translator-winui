@@ -9,6 +9,8 @@
 3. 下载 `AiTranslator-Store-x64`、`AiTranslator-Store-x86` 和 `AiTranslator-Store-ARM64` artifacts。
 4. 在 Partner Center 的同一个产品提交中上传适合目标设备的 `.msix` 文件。
 
+工作流会让 x64/x86 在 `windows-latest` 上构建，让 ARM64 在原生 `windows-11-arm` runner 上构建。ARM64 的 MSIX 配方阶段需要由同架构 Windows SDK 工具处理，不能在 x64 runner 上强行执行 ARM64 的 `mt.exe` 或资源工具。
+
 本地等价命令：
 
 ```powershell

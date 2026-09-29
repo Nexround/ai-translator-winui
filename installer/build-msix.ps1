@@ -19,9 +19,37 @@ $runtime = switch ($Platform) {
     default { 'win-x64' }
 }
 
-# The Windows SDK BuildTools NuGet package selects tools from this variable.
-# PowerShell launched from a 32-bit host otherwise makes it choose x86 tools.
-$env:PROCESSOR_ARCHITECTURE = if ($Platform -eq 'ARM64') { 'ARM64' } else { 'AMD64' }
+# The target architecture and the host architecture are different concepts.
+# ARM64 packages are commonly cross-built on an x64 GitHub runner, so selecting
+# ARM64 SDK executables here would try to execute ARM64 mt.exe on x64 Windows.
+# Configure the SDK package from the detected host architecture. This is a
+# host-tool selection, not a target-platform selection.
+$processArchitecture = if ($env:PROCESSOR_ARCHITEW6432) {
+    $env:PROCESSOR_ARCHITEW6432
+} else {
+    $env:PROCESSOR_ARCHITECTURE
+}
+$processArchitecture = if ($processArchitecture) {
+    $processArchitecture
+} else {
+    [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString()
+}
+$hostToolArchitecture = switch ($processArchitecture.ToUpperInvariant()) {
+    'AMD64' { 'x64' }
+    'X64' { 'x64' }
+    'ARM64' { 'arm64' }
+    'X86' { 'x86' }
+    default { throw "Unsupported host architecture '$processArchitecture'." }
+}
+$sdkEnvironmentArchitecture = switch ($hostToolArchitecture) {
+    'x64' { 'AMD64' }
+    'arm64' { 'ARM64' }
+    'x86' { 'x86' }
+}
+$env:PROCESSOR_ARCHITECTURE = $sdkEnvironmentArchitecture
+
+Write-Host "Target platform: $Platform ($runtime)"
+Write-Host "Host architecture: $processArchitecture; Windows SDK tools: $hostToolArchitecture"
 
 # Let the MSIX targets locate mspdbcmf.exe and emit the optional symbols
 # package when Visual Studio Build Tools is installed outside a dev prompt.
@@ -38,22 +66,26 @@ if (Test-Path $vsWhere) {
 
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 
-dotnet publish $project `
-    -c $Configuration `
-    -p:Platform=$Platform `
-    -p:RuntimeIdentifier=$runtime `
-    -p:EnableMsixTooling=true `
-    -p:GenerateAppxPackageOnBuild=true `
-    -p:AppxPackageSigningEnabled=false `
-    -p:WindowsAppSDKSelfContained=true `
-    -p:SelfContained=true `
-    -o $output
+$publishArguments = @(
+    $project
+    '-c', $Configuration
+    "-p:Platform=$Platform"
+    "-p:RuntimeIdentifier=$runtime"
+    '-p:EnableMsixTooling=true'
+    '-p:GenerateAppxPackageOnBuild=true'
+    '-p:AppxPackageSigningEnabled=false'
+    '-p:WindowsAppSDKSelfContained=true'
+    '-p:SelfContained=true'
+    '-o', $output
+)
+
+& dotnet publish @publishArguments
 if ($LASTEXITCODE -ne 0) { throw "MSIX publish failed with exit code $LASTEXITCODE." }
 
-$package = Get-ChildItem (Join-Path $root 'AppPackages') -Filter '*.msix' -Recurse |
+$package = Get-ChildItem (Join-Path $root 'AppPackages') -Filter "*_$Platform.msix" -Recurse |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
-if (-not $package) { throw 'MSIX publish completed without producing an .msix package.' }
+if (-not $package) { throw "MSIX publish completed without producing a $Platform .msix package." }
 
 $finalPackage = Join-Path $output $package.Name
 Copy-Item $package.FullName $finalPackage -Force
