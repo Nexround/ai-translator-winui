@@ -71,6 +71,15 @@ MSIX 构建需要 x64 .NET SDK、Visual Studio Build Tools 的 MSBuild，以及 
 
 脚本会在 `artifacts/msix` 输出 MSIX；打包目录下的 `Add-AppDevPackage.ps1` 可用于已信任证书的开发机安装。生产发布不应把自签名 PFX 提交到仓库，签名证书应由 CI secret 或发布机安全存储提供。
 
+开发签名包应同时分发旁边的 `AiTranslator-DevCert.cer`，安装时运行：
+
+```powershell
+.\installer\install-msix.ps1 `
+  -PackagePath artifacts/msix/AiTranslator.WinUI_1.0.0.0_x64.msix
+```
+
+安装脚本会请求一次管理员权限，将开发证书加入系统信任存储后再部署 MSIX；这正是避免 `0x800B010A`（无法验证发布者证书）的必要步骤。正式发布必须改用受信任的组织代码签名证书。
+
 ## 项目结构
 
 - `MainPage.xaml`：主界面和设置界面

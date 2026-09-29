@@ -57,6 +57,7 @@ if (-not $package) { throw 'MSIX publish completed without producing an .msix pa
 
 $finalPackage = Join-Path $output $package.Name
 Copy-Item $package.FullName $finalPackage -Force
+Copy-Item (Join-Path $PSScriptRoot 'install-msix.ps1') (Join-Path $output 'install-msix.ps1') -Force
 
 if ($Sign) {
     if (-not $CertificatePath -or -not (Test-Path $CertificatePath)) {
@@ -68,6 +69,12 @@ if ($Sign) {
     if (-not (Test-Path $signTool)) { throw "signtool.exe was not found at $signTool." }
     & $signTool sign /fd SHA256 /f $CertificatePath /p $CertificatePassword $finalPackage
     if ($LASTEXITCODE -ne 0) { throw "MSIX signing failed with exit code $LASTEXITCODE." }
+
+    # Ship only the public certificate beside the package. The private PFX is
+    # intentionally never copied into the distributable output.
+    $publicCertificatePath = Join-Path $output 'AiTranslator-DevCert.cer'
+    $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificatePath, $CertificatePassword)
+    Export-Certificate -Cert $certificate -FilePath $publicCertificatePath | Out-Null
 }
 
 Write-Host "MSIX package: $finalPackage"
