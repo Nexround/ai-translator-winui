@@ -67,9 +67,11 @@ MSIX 构建需要 x64 .NET SDK、Visual Studio Build Tools 的 MSBuild，以及 
   -OutputDirectory artifacts/msix
 ```
 
-推送 `v*` 标签时，GitHub Actions 会生成 x64 MSIX 和 ZIP 并附加到 Release。正式分发时应使用组织证书签名；本地开发可以使用自签名证书并将证书导入当前用户的“受信任的人”存储。
+微软商店发布使用 GitHub Actions 的 `Microsoft Store package` workflow，手动构建 x64、x86 和 ARM64 的提交包。提交到 Partner Center 后由 Microsoft 重新签名、托管和提供更新；GitHub 不再把未签名 MSIX 当作普通用户安装包发布。
 
 脚本会在 `artifacts/msix` 输出 MSIX；打包目录下的 `Add-AppDevPackage.ps1` 可用于已信任证书的开发机安装。生产发布不应把自签名 PFX 提交到仓库，签名证书应由 CI secret 或发布机安全存储提供。
+
+完整的商店发布步骤见 [`docs/MICROSOFT_STORE.md`](docs/MICROSOFT_STORE.md)。
 
 开发签名包应同时分发旁边的 `AiTranslator-DevCert.cer`，安装时运行：
 

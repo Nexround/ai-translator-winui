@@ -1,0 +1,41 @@
+name: Microsoft Store package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }} MSIX
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, x86, ARM64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # Store submissions do not need a publisher certificate. Microsoft
+      # re-signs the package after certification.
+      - name: Build unsigned Store MSIX
+        shell: pwsh
+        run: >-
+          .\installer\build-msix.ps1
+          -Configuration Release
+          -Platform ${{ matrix.platform }}
+          -OutputDirectory "artifacts/store-${{ matrix.platform }}"
+
+      - name: Upload Store package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AiTranslator-Store-${{ matrix.platform }}
+          path: artifacts/store-${{ matrix.platform }}/*.msix
+          if-no-files-found: error
