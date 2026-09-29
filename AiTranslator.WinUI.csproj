@@ -11,10 +11,13 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
     <WinUISDKReferences>false</WinUISDKReferences>
-    <WindowsPackageType Condition="'$(EnableMsixTooling)' == 'true'">MSIX</WindowsPackageType>
-    <WindowsPackageType Condition="'$(EnableMsixTooling)' != 'true'">None</WindowsPackageType>
+    <!-- WinUI 3 is distributed as a packaged MSIX application.  Keep this
+         unconditional so local builds and CI exercise the same deployment
+         path. -->
+    <WindowsPackageType>MSIX</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <EnableMsixTooling>false</EnableMsixTooling>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
     <PublishProfile>Properties\PublishProfiles\win10-$(Platform).pubxml</PublishProfile>
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
     <ImplicitUsings>enable</ImplicitUsings>

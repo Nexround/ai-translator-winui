@@ -47,7 +47,7 @@ dotnet build -c Debug -p:Platform=x64
 dotnet run -c Debug -p:Platform=x64
 ```
 
-项目采用 unpackaged + Windows App SDK self-contained 配置，因此普通 `dotnet build` 不需要安装或签名 MSIX 包。
+项目采用 single-project MSIX + Windows App SDK self-contained 配置。构建脚本和 CI 都走同一套 MSIX 打包路径，不再生成需要单独分发的 unpackaged EXE。
 
 ## WinUI 3 架构
 
@@ -56,24 +56,20 @@ dotnet run -c Debug -p:Platform=x64
 - XAML 使用 `x:Bind` 绑定输入、输出、状态和操作标签，避免手动同步这些基础状态。
 - `Services` 模块负责网络请求、配置持久化和 UAPI 缓存；流式响应会先消费同一数据包中的 `content`，再处理 `finish_reason`。
 
-默认构建仍保持 unpackaged，便于本地调试和自包含发布。项目同时保留 single-project MSIX 清单和 `win10-x64` 发布配置；在安装了 Visual Studio 的 Windows App SDK/MSIX 工具链的机器上，可显式启用 `EnableMsixTooling=true` 生成 MSIX。当前工作区的轻量 .NET SDK 环境没有完整的 x64 MSIX 原生工具，因此不会把 MSIX 构建误报为成功。
+MSIX 构建需要 x64 .NET SDK、Visual Studio Build Tools 的 MSBuild，以及 Windows 10 SDK 10.0.26100（包含 `makeappx.exe`、`makepri.exe` 和 `signtool.exe`）。项目会强制启用 `EnableMsixTooling=true`，并通过 `PROCESSOR_ARCHITECTURE=AMD64` 确保 Windows SDK BuildTools 选择 x64 原生工具。
 
 ## 发布
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained true -p:Platform=x64 -o artifacts/win-x64
+.\installer\build-msix.ps1 `
+  -Configuration Release `
+  -Platform x64 `
+  -OutputDirectory artifacts/msix
 ```
 
-发布目录必须整体分发，不能只复制 `AiTranslator.exe`。推送 `v*` 标签时，GitHub Actions 会生成 x64 ZIP 和免管理员权限的 `AiTranslator-Setup.exe` 安装包并附加到 Release。安装器使用 Windows IExpress 生成，适合当前 unpackaged 自包含版本；正式面向商店或企业分发时应使用签名的 MSIX。
+推送 `v*` 标签时，GitHub Actions 会生成 x64 MSIX 和 ZIP 并附加到 Release。正式分发时应使用组织证书签名；本地开发可以使用自签名证书并将证书导入当前用户的“受信任的人”存储。
 
-本地生成安装包：
-
-```powershell
-dotnet publish -c Release -r win-x64 --self-contained true -p:Platform=x64 -o artifacts/installer-payload
-.\installer\build-installer.ps1 `
-  -PayloadDirectory (Resolve-Path artifacts/installer-payload) `
-  -OutputPath (Join-Path (Resolve-Path artifacts) 'AiTranslator-Setup.exe')
-```
+脚本会在 `artifacts/msix` 输出 MSIX；打包目录下的 `Add-AppDevPackage.ps1` 可用于已信任证书的开发机安装。生产发布不应把自签名 PFX 提交到仓库，签名证书应由 CI secret 或发布机安全存储提供。
 
 ## 项目结构
 
