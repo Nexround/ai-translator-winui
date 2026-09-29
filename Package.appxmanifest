@@ -9,8 +9,8 @@
   IgnorableNamespaces="uap uap10 rescap">
 
   <Identity
-    Name="61A7A425-FAB9-4F56-B26E-A4D41A6C949E"
-    Publisher="CN=AppPublisher"
+    Name="Nexround.NexroundTranslate"
+    Publisher="CN=DB9795C3-8FFC-4CD7-AAC5-BE9408CCDE31"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="61A7A425-FAB9-4F56-B26E-A4D41A6C949E" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
